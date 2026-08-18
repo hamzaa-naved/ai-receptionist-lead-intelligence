@@ -36,7 +36,9 @@ try {
 
   const serpProxy = await Actor.createProxyConfiguration({ groups: ['GOOGLE_SERP'] });
   if (!serpProxy) throw new Error('Google SERP proxy is unavailable on this account.');
-  // Apify's GOOGLE_SERP group accepts proxy CONNECT traffic only over HTTP.\n  // The SDK can return an https:// proxy URL, which the proxy rejects with 400.\n  const serpProxyUrl = (await serpProxy.newUrl()).replace(/^https:/i, 'http:');
+  // Apify's GOOGLE_SERP group accepts proxy CONNECT traffic only over HTTP.
+  // The SDK can return an https:// proxy URL, which the proxy rejects with 400.
+  const serpProxyUrl = (await serpProxy.newUrl()).replace(/^https:/i, 'http:');
   const pageProxy = await Actor.createProxyConfiguration({ countryCode: 'US' });
   let pageProxyUrl = null;
   try { pageProxyUrl = pageProxy ? await pageProxy.newUrl() : null; } catch {}
