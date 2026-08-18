@@ -27,8 +27,8 @@ actor = next((a for a in actors if a.get('name') == ACTOR_NAME), None)
 if actor is None:
     actor = req('POST', '/actors', data=json.dumps({
         'name': ACTOR_NAME,
-        'title': 'AI Receptionist Lead Intelligence',
-        'description': 'Private lead intelligence Actor for receptionist/CSR hiring intent.',
+        'title': 'Bulk Home-Service Receptionist Job Collector',
+        'description': 'High-volume US collector for home-service receptionist, CSR, dispatcher, and scheduling postings.',
         'isPublic': False
     }))
 print('Actor:', actor['id'], actor.get('name'))
@@ -44,18 +44,18 @@ for p in ROOT.rglob('*'):
 
 versions = req('GET', f"/actors/{actor['id']}/versions")['items']
 version_payload = {
-    'versionNumber': '0.1',
+    'versionNumber': '0.2',
     'sourceType': 'SOURCE_FILES',
     'sourceFiles': source_files,
     'buildTag': 'latest'
 }
-if any(v.get('versionNumber') == '0.1' for v in versions):
-    req('PUT', f"/actors/{actor['id']}/versions/0.1", data=json.dumps(version_payload))
+if any(v.get('versionNumber') == '0.2' for v in versions):
+    req('PUT', f"/actors/{actor['id']}/versions/0.2", data=json.dumps(version_payload))
 else:
     req('POST', f"/actors/{actor['id']}/versions", data=json.dumps(version_payload))
 print('Uploaded source files:', len(source_files))
 
-build = req('POST', f"/actors/{actor['id']}/builds?version=0.1&tag=latest&waitForFinish=60")
+build = req('POST', f"/actors/{actor['id']}/builds?version=0.2&tag=latest&waitForFinish=60")
 print('Build:', build['id'], build['status'])
 while build['status'] in ('READY','RUNNING'):
     time.sleep(5)
@@ -65,15 +65,19 @@ if build['status'] != 'SUCCEEDED':
     raise SystemExit(f"Build failed: {build.get('statusMessage')}")
 
 sample_input = {
-    'niches': ['electrical'],
+    'mode': 'recent',
     'states': ['Texas', 'Florida'],
-    'freshnessDays': 14,
-    'minimumScore': 65,
-    'enrichThreshold': 70,
-    'maxLeads': 20,
-    'maxSerpRequests': 10,
+    'roleFamilies': ['reception', 'dispatch'],
+    'tradeBundles': ['hvac_plumbing_electrical'],
+    'freshnessDays': 30,
+    'partitionIndex': 0,
+    'partitionCount': 1,
+    'maxSerpRequests': 4,
     'resultsPerQueryPages': 1,
-    'companyEnrichment': True,
+    'maxJobFetches': 50,
+    'maxPostings': 50,
+    'strictHomeService': True,
+    'includeSnippetOnly': True,
     'trackHistory': True
 }
 run = req('POST', f"/actors/{actor['id']}/runs?build=latest&waitForFinish=60&maxTotalChargeUsd=2", data=json.dumps(sample_input))

@@ -1,97 +1,138 @@
 {
-  "title": "AI Receptionist Lead Intelligence input",
-  "description": "Discover and rank recent receptionist/CSR/dispatcher hiring signals for electrical and other home-service businesses.",
+  "title": "Bulk Receptionist Job Collector input",
+  "description": "Collect high-volume US home-service receptionist, CSR, dispatcher, and scheduling postings with full descriptions and cross-run history.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
-    "niches": {
-      "title": "Target niches",
-      "type": "array",
-      "description": "Primary industries to identify. Keep 'electrical' for the electrician-first strategy.",
-      "editor": "stringList",
-      "default": ["electrical"]
+    "mode": {
+      "title": "Collection mode",
+      "type": "string",
+      "description": "Recent is intended for frequent scheduled runs. Backfill searches a wider historical window.",
+      "editor": "select",
+      "default": "recent",
+      "enum": ["recent", "backfill"],
+      "enumTitles": ["Recent collection", "Historical backfill"]
     },
     "states": {
       "title": "US states",
       "type": "array",
-      "description": "Leave empty to search all 50 states plus DC.",
+      "description": "Leave empty to search all 50 states plus Washington, DC.",
       "editor": "stringList",
       "default": []
+    },
+    "roleFamilies": {
+      "title": "Role families",
+      "type": "array",
+      "description": "Leave empty to collect every supported receptionist-adjacent role family.",
+      "editor": "stringList",
+      "default": ["reception", "customer_service", "dispatch", "scheduling"]
+    },
+    "tradeBundles": {
+      "title": "Home-service trade bundles",
+      "type": "array",
+      "description": "Leave the defaults to cover the complete home-service taxonomy.",
+      "editor": "stringList",
+      "default": ["hvac_plumbing_electrical", "exterior_construction", "restoration_specialty", "property_services"]
     },
     "freshnessDays": {
       "title": "Maximum posting age",
       "type": "integer",
-      "description": "Ignore job postings older than this number of days.",
       "minimum": 1,
-      "maximum": 60,
-      "default": 14
+      "maximum": 90,
+      "default": 30
     },
-    "minimumScore": {
-      "title": "Minimum final score",
+    "partitionIndex": {
+      "title": "Partition index",
       "type": "integer",
-      "description": "Only output leads whose final intent score meets or exceeds this value.",
+      "description": "Zero-based partition used to split national coverage across frequent runs.",
       "minimum": 0,
-      "maximum": 100,
-      "default": 65
+      "maximum": 23,
+      "default": 0
     },
-    "enrichThreshold": {
-      "title": "Company enrichment threshold",
+    "partitionCount": {
+      "title": "Number of partitions",
       "type": "integer",
-      "description": "Resolve the official company website and contact details for leads at or above this score.",
-      "minimum": 0,
-      "maximum": 100,
-      "default": 70
-    },
-    "maxLeads": {
-      "title": "Maximum output leads",
-      "type": "integer",
-      "description": "Maximum number of ranked leads to save in the output dataset.",
+      "description": "Use 4 with four daily schedules. Each state is covered once per day.",
       "minimum": 1,
-      "maximum": 2000,
-      "default": 100
+      "maximum": 24,
+      "default": 1
     },
     "maxSerpRequests": {
-      "title": "Maximum Google SERP requests",
+      "title": "Maximum SERP pages per run",
       "type": "integer",
-      "description": "Hard limit on Google search requests used for discovery and enrichment.",
+      "description": "Hard discovery-cost ceiling for this run.",
       "minimum": 1,
       "maximum": 1000,
-      "default": 120
+      "default": 220
     },
     "resultsPerQueryPages": {
       "title": "SERP pages per query",
       "type": "integer",
-      "description": "Number of Google result pages to request for each discovery query.",
       "minimum": 1,
       "maximum": 3,
       "default": 1
     },
-    "companyEnrichment": {
-      "title": "Enrich hot companies",
+    "maxJobFetches": {
+      "title": "Maximum job pages fetched",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000,
+      "default": 2000
+    },
+    "maxPostings": {
+      "title": "Maximum output postings",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000,
+      "default": 5000
+    },
+    "fetchConcurrency": {
+      "title": "Page-fetch concurrency",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 40,
+      "default": 12
+    },
+    "revisitAfterDays": {
+      "title": "Days before refetching a known URL",
+      "type": "integer",
+      "description": "Known descriptions are served from cache until this interval passes.",
+      "minimum": 1,
+      "maximum": 30,
+      "default": 7
+    },
+    "strictHomeService": {
+      "title": "Require home-service evidence",
       "type": "boolean",
-      "description": "When enabled, visit official company websites to collect public contact details for strong leads.",
       "default": true
     },
-    "trackHistory": {
-      "title": "Track repeat hiring across runs",
+    "includeSnippetOnly": {
+      "title": "Keep blocked jobs using their search snippet",
       "type": "boolean",
-      "description": "When enabled, store qualified companies across runs and boost repeated hiring signals.",
+      "default": true
+    },
+    "includeExpired": {
+      "title": "Include explicitly expired jobs",
+      "type": "boolean",
+      "default": false
+    },
+    "trackHistory": {
+      "title": "Track posting history",
+      "type": "boolean",
       "default": true
     },
     "historyStoreName": {
       "title": "Persistent history store",
       "type": "string",
-      "description": "Name of the Apify key-value store used for cross-run lead history.",
       "editor": "textfield",
-      "default": "ai-receptionist-lead-history-v1"
+      "default": "receptionist-job-history-v2"
     },
     "seedUrls": {
       "title": "Optional seed job URLs",
       "type": "array",
-      "description": "Useful for testing known job postings without discovery.",
       "editor": "requestListSources",
       "default": []
     }
   },
-  "required": ["freshnessDays", "minimumScore", "enrichThreshold", "maxLeads", "maxSerpRequests"]
+  "required": ["mode", "freshnessDays", "partitionIndex", "partitionCount", "maxSerpRequests", "maxJobFetches", "maxPostings"]
 }
