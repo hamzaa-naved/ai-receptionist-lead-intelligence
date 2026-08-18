@@ -1,3 +1,4 @@
+
 {
   "title": "Bulk Receptionist Job Collector input",
   "description": "Collect high-volume US home-service receptionist, CSR, dispatcher, and scheduling postings with full descriptions and cross-run history.",
@@ -37,6 +38,7 @@
     "freshnessDays": {
       "title": "Maximum posting age",
       "type": "integer",
+      "description": "Discard postings whose published date is older than this many days; postings without a date are retained.",
       "minimum": 1,
       "maximum": 90,
       "default": 30
@@ -68,6 +70,7 @@
     "resultsPerQueryPages": {
       "title": "SERP pages per query",
       "type": "integer",
+      "description": "Number of Google result pages collected for each generated query.",
       "minimum": 1,
       "maximum": 3,
       "default": 1
@@ -75,6 +78,7 @@
     "maxJobFetches": {
       "title": "Maximum job pages fetched",
       "type": "integer",
+      "description": "Hard limit on unique candidate job URLs processed during this run.",
       "minimum": 1,
       "maximum": 10000,
       "default": 2000
@@ -82,6 +86,7 @@
     "maxPostings": {
       "title": "Maximum output postings",
       "type": "integer",
+      "description": "Maximum accepted posting records written to the default dataset.",
       "minimum": 1,
       "maximum": 10000,
       "default": 5000
@@ -89,6 +94,7 @@
     "fetchConcurrency": {
       "title": "Page-fetch concurrency",
       "type": "integer",
+      "description": "Maximum number of job-detail page requests running at the same time.",
       "minimum": 1,
       "maximum": 40,
       "default": 12
@@ -104,32 +110,38 @@
     "strictHomeService": {
       "title": "Require home-service evidence",
       "type": "boolean",
+      "description": "Only retain postings whose content contains a home-service trade or field-service signal.",
       "default": true
     },
     "includeSnippetOnly": {
       "title": "Keep blocked jobs using their search snippet",
       "type": "boolean",
+      "description": "Retain relevant discoveries even when the detail page is blocked and only the Google snippet is available.",
       "default": true
     },
     "includeExpired": {
       "title": "Include explicitly expired jobs",
       "type": "boolean",
+      "description": "When disabled, discard structured postings whose valid-through date has passed.",
       "default": false
     },
     "trackHistory": {
       "title": "Track posting history",
       "type": "boolean",
+      "description": "Persist posting fingerprints across runs to identify new, changed, repeated, and likely reposted vacancies.",
       "default": true
     },
     "historyStoreName": {
       "title": "Persistent history store",
       "type": "string",
+      "description": "Named Apify key-value store used for cached descriptions and cross-run posting history.",
       "editor": "textfield",
       "default": "receptionist-job-history-v2"
     },
     "seedUrls": {
       "title": "Optional seed job URLs",
       "type": "array",
+      "description": "Optional known job-detail URLs to process in addition to search discoveries.",
       "editor": "requestListSources",
       "default": []
     }
