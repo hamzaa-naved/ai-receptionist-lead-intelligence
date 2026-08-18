@@ -1,4 +1,4 @@
-import { Actor } from 'apify';
+import { Actor, log } from 'apify';
 import { ALL_US_STATES, JOB_DOMAINS } from './constants.js';
 import { buildQueries, fetchHtml, fetchSerp, looksLikeJobResult, selectOfficialWebsite, uniqueResults } from './discovery.js';
 import { extractCompanyPage, extractJobPage } from './extract.js';
@@ -8,6 +8,7 @@ import { domainOf, normalizeUrl, unique } from './utils.js';
 
 await Actor.init();
 
+let actorExitCode = 0;
 try {
   const input = await Actor.getInput() || {};
   const states = input.states?.length ? input.states : ALL_US_STATES;
@@ -23,7 +24,7 @@ try {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  Actor.log.info('Starting AI Receptionist Lead Intelligence', { niches, states: states.length, freshnessDays, minimumScore });
+  log.info('Starting AI Receptionist Lead Intelligence', { niches, states: states.length, freshnessDays, minimumScore });
 
   const serpProxy = await Actor.createProxyConfiguration({ groups: ['GOOGLE_SERP'] });
   const normalProxy = await Actor.createProxyConfiguration({ countryCode: 'US' });
@@ -45,14 +46,14 @@ try {
     try {
       const found = await fetchSerp(query, serpProxyUrl, pages);
       for (const r of found.filter(looksLikeJobResult)) discovered.push({ ...r, sourceQuery: query });
-      Actor.log.info(`SERP ${serpRequests}/${maxSerpRequests}`, { query, results: found.length });
+      log.info(`SERP ${serpRequests}/${maxSerpRequests}`, { query, results: found.length });
     } catch (err) {
-      Actor.log.warning('SERP request failed', { query, error: err.message });
+      log.warning('SERP request failed', { query, error: err.message });
     }
   }
 
   const candidates = uniqueResults(discovered).slice(0, 2500);
-  Actor.log.info('Discovery complete', { candidates: candidates.length, serpRequests });
+  log.info('Discovery complete', { candidates: candidates.length, serpRequests });
 
   const leads = [];
   const seenCompanyJobs = new Set();
@@ -92,7 +93,7 @@ try {
           scoring = scoreJob(job, companyData, now);
         }
       } catch (err) {
-        Actor.log.debug('Company enrichment failed', { company: job.company, error: err.message });
+        log.debug('Company enrichment failed', { company: job.company, error: err.message });
       }
     }
 
@@ -165,9 +166,12 @@ try {
     top: finalLeads.slice(0, 10).map(x => ({ company: x.company, score: x.score, jobTitle: x.jobTitle, jobUrl: x.jobUrl }))
   };
   await Actor.setValue('OUTPUT', summary);
-  Actor.log.info('Run complete', summary);
+  log.info('Run complete', summary);
+} catch (err) {
+  actorExitCode = 1;
+  log.exception(err, 'AI Receptionist Lead Intelligence failed');
 } finally {
-  await Actor.exit();
+  await Actor.exit({ exitCode: actorExitCode });
 }
 
 function inferCompanyFromSerp(title = '') {
