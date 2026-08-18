@@ -26,7 +26,7 @@ const relevance = assessRelevance(job);
 assert.equal(relevance.relevant, true);
 
 const productPage = assessRelevance({
-  title: 'AI Receptionist & Answering Service for Plumbing Companies',
+  title: '7 Best HVAC AI Virtual Receptionists for 24/7 Lead Capture',
   description: 'Start a free trial. Our virtual receptionist answers plumbing calls 24/7.'
 });
 assert.equal(productPage.relevant, false);
