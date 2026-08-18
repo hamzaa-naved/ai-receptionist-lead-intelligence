@@ -9,9 +9,7 @@
       "type": "array",
       "description": "Primary industries to identify. Keep 'electrical' for the electrician-first strategy.",
       "editor": "stringList",
-      "default": [
-        "electrical"
-      ]
+      "default": ["electrical"]
     },
     "states": {
       "title": "US states",
@@ -85,11 +83,5 @@
       "default": []
     }
   },
-  "required": [
-    "freshnessDays",
-    "minimumScore",
-    "enrichThreshold",
-    "maxLeads",
-    "maxSerpRequests"
-  ]
+  "required": ["freshnessDays", "minimumScore", "enrichThreshold", "maxLeads", "maxSerpRequests"]
 }

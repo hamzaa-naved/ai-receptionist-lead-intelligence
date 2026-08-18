@@ -1,0 +1,33 @@
+{
+  "actorSpecification": 1,
+  "views": {
+    "overview": {
+      "title": "AI receptionist leads",
+      "transformation": {
+        "fields": [
+          "score",
+          "priority",
+          "company",
+          "jobTitle",
+          "datePosted",
+          "location",
+          "remoteType",
+          "salaryText",
+          "callsPerDay",
+          "crm",
+          "phone",
+          "email",
+          "companyWebsite",
+          "jobUrl",
+          "timesSeen",
+          "repostLikely",
+          "evidence"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {}
+      }
+    }
+  }
+}
