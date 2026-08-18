@@ -24,6 +24,24 @@ assert.equal(job.descriptionSource, 'json_ld');
 assert.equal(job.location, 'Austin, TX, US');
 const relevance = assessRelevance(job);
 assert.equal(relevance.relevant, true);
+
+const productPage = assessRelevance({
+  title: 'AI Receptionist & Answering Service for Plumbing Companies',
+  description: 'Start a free trial. Our virtual receptionist answers plumbing calls 24/7.'
+});
+assert.equal(productPage.relevant, false);
+
+const softwareArticle = assessRelevance({
+  title: 'Top Alternatives to Windows Task Scheduler in 2026',
+  description: 'A comparison of enterprise scheduling software and field service tools.'
+});
+assert.equal(softwareArticle.relevant, false);
+
+const jobSeeker = assessRelevance({
+  title: 'Appointment Setter',
+  description: "I'm currently looking for a job. Roofing campaigns are my specialty."
+});
+assert.equal(jobSeeker.relevant, false);
 assert.ok(relevance.matchedTradeTerms.includes('electrical contractor'));
 
 const medical = assessRelevance({ title: 'Medical Receptionist', description: 'Answer phones and schedule appointments at our dental clinic.' });
