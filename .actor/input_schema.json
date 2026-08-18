@@ -1,0 +1,87 @@
+{
+  "title": "AI Receptionist Lead Intelligence input",
+  "description": "Discover and rank recent receptionist/CSR/dispatcher hiring signals for electrical and other home-service businesses.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "niches": {
+      "title": "Target niches",
+      "type": "array",
+      "description": "Primary industries to identify. Keep 'electrical' for the electrician-first strategy.",
+      "editor": "stringList",
+      "default": ["electrical"]
+    },
+    "states": {
+      "title": "US states",
+      "type": "array",
+      "description": "Leave empty to search all 50 states plus DC.",
+      "editor": "stringList",
+      "default": []
+    },
+    "freshnessDays": {
+      "title": "Maximum posting age",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60,
+      "default": 14
+    },
+    "minimumScore": {
+      "title": "Minimum final score",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 65
+    },
+    "enrichThreshold": {
+      "title": "Company enrichment threshold",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 70
+    },
+    "maxLeads": {
+      "title": "Maximum output leads",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000,
+      "default": 100
+    },
+    "maxSerpRequests": {
+      "title": "Maximum Google SERP requests",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 120
+    },
+    "resultsPerQueryPages": {
+      "title": "SERP pages per query",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "default": 1
+    },
+    "companyEnrichment": {
+      "title": "Enrich hot companies",
+      "type": "boolean",
+      "default": true
+    },
+    "trackHistory": {
+      "title": "Track repeat hiring across runs",
+      "type": "boolean",
+      "default": true
+    },
+    "historyStoreName": {
+      "title": "Persistent history store",
+      "type": "string",
+      "default": "ai-receptionist-lead-history-v1"
+    },
+    "seedUrls": {
+      "title": "Optional seed job URLs",
+      "type": "array",
+      "description": "Useful for testing known job postings without discovery.",
+      "editor": "requestListSources",
+      "default": []
+    }
+  },
+  "required": ["freshnessDays", "minimumScore", "enrichThreshold", "maxLeads", "maxSerpRequests"]
+}
