@@ -1,43 +1,59 @@
-# AI Receptionist Lead Intelligence — GitHub Easy Build
+# AI Receptionist Lead Intelligence — Apify Actor
 
-This edition is intentionally **flat**: there are NO folders and NO hidden `.actor` directory.
+Purpose-built lead intelligence for selling AI receptionists to electricians and other home-service businesses.
 
-Apify supports a legacy flat Actor layout when `.actor/actor.json` is absent. The platform can use:
-- `apify.json`
-- `Dockerfile`
-- `README.md`
-- `INPUT_SCHEMA.json`
-- `package.json`
-- `main.js`
+## What it does
 
-## GitHub upload
+1. Searches Google through Apify's **GOOGLE_SERP proxy** for recent receptionist / CSR / dispatcher / scheduler job signals.
+2. Discovers job pages across Indeed, LinkedIn, ZipRecruiter, ATS systems, and company career sites.
+3. Extracts `JobPosting` JSON-LD when available, with resilient text fallbacks when a job board is blocked.
+4. Scores the actual duties—not just the title—for:
+   - inbound phone answering
+   - appointment/job scheduling
+   - technician dispatch
+   - missed-call / speed-to-lead follow-up
+   - ServiceTitan / Jobber / Housecall Pro
+   - remote / hybrid acceptance
+   - explicit calls-per-day
+   - electrical/home-service fit
+5. Applies strong negative filters for freight dispatch, healthcare reception, hospitality, etc.
+6. Enriches strong candidates by resolving the company's official website and extracting phone/email/public business details.
+7. Stores cross-run history in a named Apify key-value store and boosts companies repeatedly hiring the same function.
+8. Outputs only ranked sales opportunities with the evidence behind each score.
 
-1. Extract the ZIP.
-2. You will see exactly 6 files and no folders.
-3. On your GitHub repository choose **Add file → Upload files**.
-4. Select all 6 files at once.
-5. Commit them to `main`.
+## Why this is not a generic job scraper
 
-## Connect to Apify
+The ranking is deterministic and evidence-backed. A company hiring somebody to answer 40–60 inbound calls/day, book electrical service appointments, dispatch techs, and work in ServiceTitan can score 90+ while a freight dispatcher or hospital receptionist is heavily penalized.
 
-In Apify create/develop an Actor and use **Git repository** as source:
+## Default cost philosophy
 
-`https://github.com/hamzaa-naved/ai-receptionist-lead-intelligence.git#main`
+- Cheap Google SERP discovery first.
+- No browser for every job.
+- Deep company enrichment only above `enrichThreshold`.
+- Persistent history only for qualified leads.
+- Hard `maxSerpRequests` and `maxLeads` controls.
 
-Then build.
+## Recommended first run
 
-## Safe first test
+```json
+{
+  "niches": ["electrical"],
+  "states": ["Texas", "Florida", "Arizona", "North Carolina", "Georgia"],
+  "freshnessDays": 14,
+  "minimumScore": 65,
+  "enrichThreshold": 70,
+  "maxLeads": 50,
+  "maxSerpRequests": 30,
+  "resultsPerQueryPages": 1,
+  "companyEnrichment": true,
+  "trackHistory": true
+}
+```
 
-Use:
-- niches: electrical
-- states: Texas, Florida
-- freshnessDays: 14
-- minimumScore: 65
-- enrichThreshold: 70
-- maxLeads: 20
-- maxSerpRequests: 10
-- resultsPerQueryPages: 1
-- companyEnrichment: true
-- trackHistory: true
+Then expand to all states by leaving `states` empty.
 
-The Actor uses Apify's Google SERP proxy for discovery, then scores receptionist/CSR/dispatcher hiring intent and optionally enriches high-scoring companies.
+## Deployment
+
+Use Apify CLI (`apify push`) from this folder, or use the included `deploy_to_apify.py` with an `APIFY_TOKEN` environment variable.
+
+Do not hard-code API tokens in source code.
