@@ -21,6 +21,7 @@
     "freshnessDays": {
       "title": "Maximum posting age",
       "type": "integer",
+      "description": "Ignore job postings older than this number of days.",
       "minimum": 1,
       "maximum": 60,
       "default": 14
@@ -28,6 +29,7 @@
     "minimumScore": {
       "title": "Minimum final score",
       "type": "integer",
+      "description": "Only output leads whose final intent score meets or exceeds this value.",
       "minimum": 0,
       "maximum": 100,
       "default": 65
@@ -35,6 +37,7 @@
     "enrichThreshold": {
       "title": "Company enrichment threshold",
       "type": "integer",
+      "description": "Resolve the official company website and contact details for leads at or above this score.",
       "minimum": 0,
       "maximum": 100,
       "default": 70
@@ -42,6 +45,7 @@
     "maxLeads": {
       "title": "Maximum output leads",
       "type": "integer",
+      "description": "Maximum number of ranked leads to save in the output dataset.",
       "minimum": 1,
       "maximum": 2000,
       "default": 100
@@ -49,6 +53,7 @@
     "maxSerpRequests": {
       "title": "Maximum Google SERP requests",
       "type": "integer",
+      "description": "Hard limit on Google search requests used for discovery and enrichment.",
       "minimum": 1,
       "maximum": 1000,
       "default": 120
@@ -56,6 +61,7 @@
     "resultsPerQueryPages": {
       "title": "SERP pages per query",
       "type": "integer",
+      "description": "Number of Google result pages to request for each discovery query.",
       "minimum": 1,
       "maximum": 3,
       "default": 1
@@ -63,16 +69,19 @@
     "companyEnrichment": {
       "title": "Enrich hot companies",
       "type": "boolean",
+      "description": "When enabled, visit official company websites to collect public contact details for strong leads.",
       "default": true
     },
     "trackHistory": {
       "title": "Track repeat hiring across runs",
       "type": "boolean",
+      "description": "When enabled, store qualified companies across runs and boost repeated hiring signals.",
       "default": true
     },
     "historyStoreName": {
       "title": "Persistent history store",
       "type": "string",
+      "description": "Name of the Apify key-value store used for cross-run lead history.",
       "default": "ai-receptionist-lead-history-v1"
     },
     "seedUrls": {
