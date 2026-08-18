@@ -40,7 +40,9 @@ function googleFreshness(days) {
 export async function fetchSerp(querySpec, proxyUrl, pages = 1, freshnessDays = 30) {
   const all = [];
   for (let page = 0; page < pages; page++) {
-    const url = new URL('https://www.google.com/search');
+    // Apify's GOOGLE_SERP proxy only accepts an HTTP target URL. The proxy
+    // performs the Google request upstream and returns the search response.
+    const url = new URL('http://www.google.com/search');
     url.searchParams.set('q', typeof querySpec === 'string' ? querySpec : querySpec.query);
     url.searchParams.set('num', '10');
     url.searchParams.set('start', String(page * 10));
