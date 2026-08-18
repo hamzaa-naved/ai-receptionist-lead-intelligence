@@ -1,11 +1,11 @@
 {
   "name": "ai-receptionist-lead-intelligence",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Apify Actor that discovers and ranks businesses showing strong AI receptionist buying intent.",
+  "description": "High-volume Apify collector for US home-service receptionist, CSR, dispatcher, and scheduling job postings.",
   "scripts": {
     "start": "node src/main.js",
-    "test": "node tests/scoring.test.js"
+    "test": "node tests/collector.test.js"
   },
   "dependencies": {
     "apify": "^3.0.0",

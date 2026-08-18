@@ -19,8 +19,10 @@ export function normalizeUrl(raw) {
     const u = new URL(url);
     u.hash = '';
     for (const key of [...u.searchParams.keys()]) {
-      if (/^(utm_|gclid|fbclid|ved$|sa$|source$)/i.test(key)) u.searchParams.delete(key);
+      if (/^(utm_|gclid|fbclid|ved$|sa$|source$|from$|ref$|referrer$|trk$|trackingId$)/i.test(key)) u.searchParams.delete(key);
     }
+    u.hostname = u.hostname.toLowerCase();
+    if (u.pathname !== '/') u.pathname = u.pathname.replace(/\/+$/, '');
     return u.toString();
   } catch {
     return null;
@@ -35,6 +37,16 @@ export function companyKey(company = '', location = '', website = '') {
   const domain = domainOf(website);
   const material = `${company.toLowerCase().replace(/[^a-z0-9]+/g,'')}|${location.toLowerCase()}|${domain}`;
   return crypto.createHash('sha1').update(material).digest('hex');
+}
+
+export function sha1(value = '') {
+  return crypto.createHash('sha1').update(String(value)).digest('hex');
+}
+
+export function jobKey(url = '', company = '', title = '', location = '') {
+  const normalized = normalizeUrl(url) || '';
+  const material = normalized || `${company}|${title}|${location}`.toLowerCase().replace(/[^a-z0-9|]+/g, '');
+  return sha1(material);
 }
 
 export function parseDate(value) {

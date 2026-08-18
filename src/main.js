@@ -1,180 +1,172 @@
 import { Actor, log } from 'apify';
-import { ALL_US_STATES, JOB_DOMAINS } from './constants.js';
-import { buildQueries, fetchHtml, fetchSerp, looksLikeJobResult, selectOfficialWebsite, uniqueResults } from './discovery.js';
-import { extractCompanyPage, extractJobPage } from './extract.js';
-import { scoreJob } from './scoring.js';
-import { applyHistory } from './history.js';
-import { domainOf, normalizeUrl, unique } from './utils.js';
+import { ALL_US_STATES } from './constants.js';
+import { buildQueries, fetchHtml, fetchSerp, looksLikeJobResult, uniqueResults } from './discovery.js';
+import { extractJobPage } from './extract.js';
+import { applyPostingHistory, getHistory, postingFromCache, shouldRefetch } from './history.js';
+import { assessRelevance } from './relevance.js';
+import { domainOf, normalizeUrl } from './utils.js';
 
 await Actor.init();
 
-let actorExitCode = 0;
+let exitCode = 0;
 try {
   const input = await Actor.getInput() || {};
   const states = input.states?.length ? input.states : ALL_US_STATES;
-  const niches = input.niches?.length ? input.niches : ['electrical'];
-  const freshnessDays = input.freshnessDays ?? 14;
-  const minimumScore = input.minimumScore ?? 65;
-  const enrichThreshold = input.enrichThreshold ?? 70;
-  const maxLeads = input.maxLeads ?? 100;
-  const maxSerpRequests = input.maxSerpRequests ?? 120;
-  const pages = input.resultsPerQueryPages ?? 1;
-  const companyEnrichment = input.companyEnrichment !== false;
+  const freshnessDays = input.freshnessDays ?? (input.mode === 'backfill' ? 60 : 30);
+  const maxSerpRequests = input.maxSerpRequests ?? 220;
+  const pagesPerQuery = input.resultsPerQueryPages ?? 1;
+  const maxJobFetches = input.maxJobFetches ?? 2000;
+  const maxPostings = input.maxPostings ?? 5000;
+  const fetchConcurrency = input.fetchConcurrency ?? 12;
+  const revisitAfterDays = input.revisitAfterDays ?? 7;
+  const strictHomeService = input.strictHomeService !== false;
+  const includeSnippetOnly = input.includeSnippetOnly !== false;
+  const includeExpired = input.includeExpired === true;
   const trackHistory = input.trackHistory !== false;
   const now = new Date();
   const nowIso = now.toISOString();
 
-  log.info('Starting AI Receptionist Lead Intelligence', { niches, states: states.length, freshnessDays, minimumScore });
+  log.info('Starting bulk receptionist job collector', {
+    states: states.length,
+    mode: input.mode || 'recent',
+    freshnessDays,
+    maxSerpRequests,
+    partition: `${input.partitionIndex || 0}/${input.partitionCount || 1}`
+  });
 
   const serpProxy = await Actor.createProxyConfiguration({ groups: ['GOOGLE_SERP'] });
-  const normalProxy = await Actor.createProxyConfiguration({ countryCode: 'US' });
-  if (!serpProxy) throw new Error('Google SERP proxy is not available on this account.');
-  const serpProxyUrl = await serpProxy.newUrl();
+  if (!serpProxy) throw new Error('Google SERP proxy is unavailable on this account.');
+  // Apify's GOOGLE_SERP group accepts proxy CONNECT traffic only over HTTP.
+  // The SDK can return an https:// proxy URL, which the proxy rejects with 400.
+  const serpProxyUrl = (await serpProxy.newUrl()).replace(/^https:/i, 'http:');
+  const pageProxy = await Actor.createProxyConfiguration({ countryCode: 'US' });
+  let pageProxyUrl = null;
+  try { pageProxyUrl = pageProxy ? await pageProxy.newUrl() : null; } catch {}
 
-  let normalProxyUrl = null;
-  try { normalProxyUrl = normalProxy ? await normalProxy.newUrl() : null; } catch {}
+  const historyStore = trackHistory
+    ? await Actor.openKeyValueStore(input.historyStoreName || 'receptionist-job-history-v2')
+    : null;
 
-  const discovered = [];
-  const seedUrls = (input.seedUrls || []).map(x => typeof x === 'string' ? x : x?.url).filter(Boolean);
-  for (const url of seedUrls) discovered.push({ url: normalizeUrl(url), title: '', snippet: '', domain: domainOf(url), sourceQuery: 'seed' });
-
-  const queries = buildQueries({ niches, states });
-  let serpRequests = 0;
-  for (const query of queries) {
-    if (serpRequests >= maxSerpRequests) break;
-    serpRequests += pages;
+  const allQueries = buildQueries({
+    states,
+    roleFamilies: input.roleFamilies,
+    tradeBundles: input.tradeBundles,
+    partitionIndex: input.partitionIndex ?? 0,
+    partitionCount: input.partitionCount ?? 1
+  });
+  const queryLimit = Math.max(0, Math.floor(maxSerpRequests / pagesPerQuery));
+  const queries = allQueries.slice(0, queryLimit);
+  const queryResults = await mapLimit(queries, Math.min(10, fetchConcurrency), async spec => {
     try {
-      const found = await fetchSerp(query, serpProxyUrl, pages);
-      for (const r of found.filter(looksLikeJobResult)) discovered.push({ ...r, sourceQuery: query });
-      log.info(`SERP ${serpRequests}/${maxSerpRequests}`, { query, results: found.length });
-    } catch (err) {
-      log.warning('SERP request failed', { query, error: err.message });
+      const results = await fetchSerp(spec, serpProxyUrl, pagesPerQuery, freshnessDays);
+      log.info('Search completed', { state: spec.state, roleFamily: spec.roleFamily, results: results.length });
+      return results.filter(looksLikeJobResult).map(result => ({
+        ...result,
+        sourceQuery: spec.query,
+        searchState: spec.state,
+        roleFamily: spec.roleFamily
+      }));
+    } catch (error) {
+      log.warning('Search failed', { query: spec.query, error: error.message });
+      return [];
     }
-  }
+  });
 
-  const candidates = uniqueResults(discovered).slice(0, 2500);
-  log.info('Discovery complete', { candidates: candidates.length, serpRequests });
+  const seedCandidates = (input.seedUrls || [])
+    .map(value => typeof value === 'string' ? value : value?.url)
+    .filter(Boolean)
+    .map(url => ({ url: normalizeUrl(url), title: '', snippet: '', sourceQuery: 'seed', searchState: null, roleFamily: 'seed' }));
+  const candidates = uniqueResults([...seedCandidates, ...queryResults.flat()]).slice(0, maxJobFetches);
+  log.info('Discovery complete', {
+    searchesPlanned: queries.length,
+    serpRequests: queries.length * pagesPerQuery,
+    candidates: candidates.length
+  });
 
-  const leads = [];
-  const seenCompanyJobs = new Set();
-  for (let idx = 0; idx < candidates.length; idx++) {
-    const serp = candidates[idx];
-    if (!serp.url) continue;
-    let job;
-    try {
-      const { html, finalUrl } = await fetchHtml(serp.url, normalProxyUrl);
-      job = extractJobPage(html, finalUrl || serp.url, serp);
-    } catch (err) {
-      // A blocked job board still gives us SERP title/snippet; score it at lower confidence.
-      job = extractJobPage('', serp.url, serp);
-      job.fetchError = err.message;
-    }
-
-    if (!job.title && !job.description) continue;
-    if (job.postingAgeDays != null && job.postingAgeDays > freshnessDays) continue;
-
-    let scoring = scoreJob(job, null, now);
-    if (scoring.score < Math.min(55, minimumScore)) continue;
-
-    let companyWebsite = null;
-    let companyData = null;
-    if (companyEnrichment && scoring.score >= enrichThreshold && job.company) {
+  const processed = await mapLimit(candidates, fetchConcurrency, async candidate => {
+    if (!candidate.url) return null;
+    const old = await getHistory(historyStore, candidate.url);
+    let posting = null;
+    if (old && !shouldRefetch(old, now, revisitAfterDays)) posting = postingFromCache(candidate, old);
+    if (!posting) {
       try {
-        if (serpRequests < maxSerpRequests) {
-          const q = `\"${job.company}\" ${job.location || ''} electrician electrical official website`;
-          serpRequests += 1;
-          const results = await fetchSerp(q, serpProxyUrl, 1);
-          companyWebsite = selectOfficialWebsite(results, job.company);
-        }
-        if (companyWebsite) {
-          const home = await fetchHtml(companyWebsite, normalProxyUrl);
-          companyData = extractCompanyPage(home.html, home.finalUrl || companyWebsite);
-          // Re-score with the company website evidence.
-          scoring = scoreJob(job, companyData, now);
-        }
-      } catch (err) {
-        log.debug('Company enrichment failed', { company: job.company, error: err.message });
+        const page = await fetchHtml(candidate.url, pageProxyUrl);
+        posting = extractJobPage(page.html, page.finalUrl || candidate.url, candidate);
+        posting.fetchStatus = 'fetched';
+        posting.httpStatus = page.statusCode;
+        posting.fetchError = null;
+      } catch (error) {
+        posting = extractJobPage('', candidate.url, candidate);
+        posting.fetchStatus = 'snippet_only';
+        posting.httpStatus = null;
+        posting.fetchError = error.message;
       }
     }
 
-    const company = job.company || inferCompanyFromSerp(serp.title);
-    const dedupeKey = `${String(company).toLowerCase()}|${job.title.toLowerCase()}|${job.location || ''}`;
-    if (seenCompanyJobs.has(dedupeKey)) continue;
-    seenCompanyJobs.add(dedupeKey);
+    if (!posting.title && !posting.description) return null;
+    if (!includeSnippetOnly && posting.descriptionSource === 'serp_snippet') return null;
+    if (posting.postingAgeDays != null && posting.postingAgeDays > freshnessDays) return null;
+    if (!includeExpired && posting.validThrough) {
+      const expiry = new Date(posting.validThrough);
+      if (!Number.isNaN(expiry.valueOf()) && expiry < now) return null;
+    }
 
-    if (scoring.score < minimumScore) continue;
-
-    const lead = {
-      score: scoring.score,
-      priority: scoring.priority,
-      company,
-      jobTitle: job.title,
-      jobUrl: job.jobUrl,
-      sourceDomain: domainOf(job.jobUrl),
-      sourceQuery: serp.sourceQuery || null,
-      datePosted: job.datePosted,
-      postingAgeDays: job.postingAgeDays,
-      location: job.location,
-      remoteType: job.remoteType,
-      employmentType: job.employmentType,
-      salaryText: job.salaryText,
-      callsPerDay: scoring.callsPerDay,
-      crm: scoring.crm,
-      recommendedAngle: scoring.recommendedAngle,
-      companyWebsite,
-      phone: companyData?.phones?.[0] || job.phones?.[0] || null,
-      phones: unique([...(companyData?.phones || []), ...(job.phones || [])]),
-      email: companyData?.emails?.[0] || job.emails?.[0] || null,
-      emails: unique([...(companyData?.emails || []), ...(job.emails || [])]),
-      social: companyData?.social || [],
-      evidence: scoring.evidence,
-      penalties: scoring.penalties,
-      signals: scoring.signals,
-      structuredJob: job.structuredJob,
-      fetchError: job.fetchError || null,
+    const relevance = assessRelevance(posting, { strictHomeService });
+    if (!relevance.relevant) return null;
+    const record = await applyPostingHistory(historyStore, {
+      ...posting,
+      ...relevance,
+      sourceDomain: domainOf(posting.jobUrl || candidate.url),
+      sourceQuery: candidate.sourceQuery || null,
+      searchState: candidate.searchState || null,
+      roleFamily: candidate.roleFamily || null,
       discoveredAt: nowIso
-    };
-    leads.push(lead);
+    }, nowIso);
+    return record;
+  });
+
+  const postings = processed.filter(Boolean)
+    .sort((a, b) => Number(b.isNew) - Number(a.isNew) || (a.postingAgeDays ?? 9999) - (b.postingAgeDays ?? 9999))
+    .slice(0, maxPostings);
+  for (let index = 0; index < postings.length; index += 100) {
+    await Actor.pushData(postings.slice(index, index + 100));
   }
-
-  // Rank before history so we don't write thousands of low-value history records.
-  leads.sort((a,b) => b.score - a.score);
-  let finalLeads = leads.slice(0, Math.max(maxLeads * 2, maxLeads));
-
-  let historyStore = null;
-  if (trackHistory) {
-    historyStore = await Actor.openKeyValueStore(input.historyStoreName || 'ai-receptionist-lead-history-v1');
-    const withHistory = [];
-    for (const lead of finalLeads) withHistory.push(await applyHistory(historyStore, lead, nowIso));
-    finalLeads = withHistory;
-  }
-
-  finalLeads.sort((a,b) => b.score - a.score);
-  finalLeads = finalLeads.slice(0, maxLeads);
-
-  for (const lead of finalLeads) await Actor.pushData(lead);
 
   const summary = {
     generatedAt: nowIso,
+    mode: input.mode || 'recent',
+    partitionIndex: input.partitionIndex ?? 0,
+    partitionCount: input.partitionCount ?? 1,
+    statesSearched: [...new Set(queries.map(query => query.state))],
+    searchesRun: queries.length,
+    serpRequests: queries.length * pagesPerQuery,
     candidatesDiscovered: candidates.length,
-    qualifiedBeforeLimit: leads.length,
-    outputLeads: finalLeads.length,
-    serpRequests,
-    minimumScore,
-    hotLeads: finalLeads.filter(x => x.score >= 90).length,
-    highLeads: finalLeads.filter(x => x.score >= 80 && x.score < 90).length,
-    top: finalLeads.slice(0, 10).map(x => ({ company: x.company, score: x.score, jobTitle: x.jobTitle, jobUrl: x.jobUrl }))
+    postingsOutput: postings.length,
+    newPostings: postings.filter(posting => posting.isNew).length,
+    changedPostings: postings.filter(posting => posting.isChanged).length,
+    likelyReposts: postings.filter(posting => posting.repostLikely).length,
+    fullDescriptions: postings.filter(posting => !['serp_snippet', 'none'].includes(posting.descriptionSource)).length,
+    snippetOnly: postings.filter(posting => posting.descriptionSource === 'serp_snippet').length,
+    fetchFailures: postings.filter(posting => posting.fetchError).length
   };
   await Actor.setValue('OUTPUT', summary);
-  log.info('Run complete', summary);
-} catch (err) {
-  actorExitCode = 1;
-  log.exception(err, 'AI Receptionist Lead Intelligence failed');
+  log.info('Bulk collection complete', summary);
+} catch (error) {
+  exitCode = 1;
+  log.exception(error, 'Bulk receptionist job collector failed');
 } finally {
-  await Actor.exit({ exitCode: actorExitCode });
+  await Actor.exit({ exitCode });
 }
 
-function inferCompanyFromSerp(title = '') {
-  const m = title.match(/(?: at | @ | - )(.+?)(?:\s*[|–—-]\s*(?:Indeed|LinkedIn|Glassdoor|ZipRecruiter))?$/i);
-  return m ? m[1].trim() : null;
+async function mapLimit(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), items.length || 1) }, worker));
+  return results;
 }

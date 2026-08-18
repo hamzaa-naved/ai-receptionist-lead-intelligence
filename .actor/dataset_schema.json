@@ -2,32 +2,16 @@
   "actorSpecification": 1,
   "views": {
     "overview": {
-      "title": "AI receptionist leads",
+      "title": "Bulk receptionist job postings",
       "transformation": {
         "fields": [
-          "score",
-          "priority",
-          "company",
-          "jobTitle",
-          "datePosted",
-          "location",
-          "remoteType",
-          "salaryText",
-          "callsPerDay",
-          "crm",
-          "phone",
-          "email",
-          "companyWebsite",
-          "jobUrl",
-          "timesSeen",
-          "repostLikely",
-          "evidence"
+          "isNew", "isChanged", "repostLikely", "company", "title", "location", "datePosted",
+          "postingAgeDays", "employmentType", "salaryText", "remoteType", "description", "descriptionSource",
+          "descriptionChars", "jobUrl", "sourceDomain", "searchState", "roleFamily", "matchedRoleTerms",
+          "matchedTaskTerms", "matchedTradeTerms", "firstSeen", "lastSeen", "timesSeen", "fetchStatus", "fetchError"
         ]
       },
-      "display": {
-        "component": "table",
-        "properties": {}
-      }
+      "display": { "component": "table", "properties": {} }
     }
   }
 }
