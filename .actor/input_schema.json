@@ -82,6 +82,7 @@
       "title": "Persistent history store",
       "type": "string",
       "description": "Name of the Apify key-value store used for cross-run lead history.",
+      "editor": "textfield",
       "default": "ai-receptionist-lead-history-v1"
     },
     "seedUrls": {
