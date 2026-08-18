@@ -13,7 +13,7 @@ export function assessRelevance(job, { strictHomeService = true } = {}) {
   const titleRoleTerms = matches(title, ROLE_TERMS);
   const taskTerms = matches(content, TASK_TERMS);
   const tradeTerms = matches(content, TRADE_TERMS);
-  const nonJobTitle = /\b(?:ai|virtual) receptionist\b|answering service|\b(?:alternatives?|software|tools?|comparison|review)\b|\btop \d+\b/i.test(title);
+  const nonJobTitle = /\bai(?: virtual)? receptionists?\b|\bvirtual receptionists?\b|answering service|\b(?:alternatives?|software|tools?|comparison|review)\b|\btop \d+\b|\b\d+ best\b/i.test(title);
   const jobSeekerPost = /\b(?:i am|i'm|currently) looking for (?:a )?job\b|\bseeking (?:a )?(?:job|work|employment)\b|\bhire me\b/i.test(content);
   const structuredJobEvidence = Boolean(job.company || job.datePosted || job.employmentType || job.salary);
   const textualJobEvidence = /\b(?:apply|job description|responsibilities|qualifications|requirements|benefits|compensation|salary|pay range|full[- ]time|part[- ]time|now hiring|we(?:'re| are) hiring|join (?:our|the) team)\b/i.test(content);
