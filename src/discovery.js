@@ -20,7 +20,7 @@ export function buildQueries({ states, roleFamilies, tradeBundles, partitionInde
       const roleExpression = ROLE_FAMILIES[roleFamily];
       if (!roleExpression) continue;
       queries.push({
-        query: `${roleExpression} (${tradeExpression}) jobs "${state}"`,
+        query: `${roleExpression} (${tradeExpression}) jobs "${state}" -"AI receptionist" -"virtual receptionist" -"answering service" -"task scheduler" -software -alternatives`,
         state,
         roleFamily,
         tradeBundles: selectedTrades
@@ -83,6 +83,7 @@ export function parseGoogleResults(html) {
 
 export function looksLikeJobResult(result) {
   const domain = result.domain || domainOf(result.url);
+  if (/^(?:www\.)?(?:youtube\.com|youtu\.be|facebook\.com|instagram\.com|tiktok\.com)$/i.test(domain)) return false;
   if (JOB_DOMAINS.some(x => domain === x || domain.endsWith(`.${x}`))) return true;
   return /\bjob|career|hiring|receptionist|customer service|dispatcher|scheduler|coordinator\b/i.test(`${result.title} ${result.snippet} ${result.url}`);
 }
